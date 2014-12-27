@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:ftp="http://www.mulesoft.org/schema/mule/ee/ftp" xmlns:ajax="http://www.mulesoft.org/schema/mule/ajax"
+	xmlns:stdio="http://www.mulesoft.org/schema/mule/stdio" xmlns:axis="http://www.mulesoft.org/schema/mule/axis"
+	xmlns:jms="http://www.mulesoft.org/schema/mule/jms" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:https="http://www.mulesoft.org/schema/mule/https"
+	version="EE-3.5.2" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:spring="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/ee/ftp http://www.mulesoft.org/schema/mule/ee/ftp/current/mule-ftp-ee.xsd
+http://www.mulesoft.org/schema/mule/stdio http://www.mulesoft.org/schema/mule/stdio/current/mule-stdio.xsd
+http://www.mulesoft.org/schema/mule/axis http://www.mulesoft.org/schema/mule/axis/current/mule-axis.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/https http://www.mulesoft.org/schema/mule/https/current/mule-https.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ajax http://www.mulesoft.org/schema/mule/ajax/current/mule-ajax.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+
+
+
+	<http:connector name="httpConnector">
+		<service-overrides
+			messageFactory="org.mule.transport.http.HttpMultipartMuleMessageFactory" />
+	</http:connector>
+
+	<flow name="http-xml-receive-flow" doc:name="http-xml-receive-flow">
+		<http:inbound-endpoint exchange-pattern="request-response"
+			host="apparel-uk.local" port="8888" doc:name="HTTP" connector-ref="httpConnector"
+			contentType="application/x-www-form-urlencoded" />
+
+		<http:body-to-parameter-map-transformer />
+		<set-variable variableName="incomingFormData" value="#[payload]"
+			doc:name="Variable" />
+
+		<logger level="INFO" message="PPPP #[incomingFormData.storename] " />
+
+		<choice doc:name="Determine store">
+			<when expression="#[incomingFormData.storename == 'germany']">
+				<http:outbound-endpoint exchange-pattern="request-response"
+					method="POST"
+					address="http://localhost:9001/productsellingservices/oauth/token?grant_type=client_credentials&amp;client_id=the_client&amp;client_secret=secret"
+					doc:name="SECENDPOINT">
+					<response>
+						<object-to-string-transformer />
+						<set-payload
+							value="#[org.mule.util.StringUtils.substringBefore(payload.split(':')[1], ',').substring(1,37)]" />
+					</response>
+				</http:outbound-endpoint>
+
+
+				<http:outbound-endpoint method="POST"
+					address="http://localhost:9001/productsellingservices/sellingproduct/search?access_token=#[payload]"
+					exchange-pattern="request-response" doc:name="SENDPRODUCT">
+					<object-to-string-transformer />
+					<set-payload value="#[incomingFormData]" />
+				</http:outbound-endpoint>
+
+
+				<http:outbound-endpoint method="POST"
+					address="http://localhost:9001/productsellingservices/receivingproduct/response"
+					exchange-pattern="request-response" doc:name="RECIEVEPRODUCT">
+					<response>
+						<object-to-string-transformer />
+					</response>
+				</http:outbound-endpoint>
+			</when>
+			
+			
+			<when expression="#[incomingFormData.storename == 'uk']">
+				<http:outbound-endpoint exchange-pattern="request-response"
+					method="POST"
+					address="http://localhost:9001/productsellingservices_slstr/oauth/token?grant_type=client_credentials&amp;client_id=the_client&amp;client_secret=secret"
+					doc:name="SECENDPOINT">
+					<response>
+						<object-to-string-transformer />
+						<set-payload
+							value="#[org.mule.util.StringUtils.substringBefore(payload.split(':')[1], ',').substring(1,37)]" />
+					</response>
+				</http:outbound-endpoint>
+
+
+				<http:outbound-endpoint method="POST"
+					address="http://localhost:9001/productsellingservices_slstr/sellingproduct/search?access_token=#[payload]"
+					exchange-pattern="request-response" doc:name="SENDPRODUCT">
+					<object-to-string-transformer />
+					<set-payload value="#[incomingFormData]" />
+				</http:outbound-endpoint>
+
+
+				<http:outbound-endpoint method="POST"
+					address="http://localhost:9001/productsellingservices_slstr/receivingproduct/response"
+					exchange-pattern="request-response" doc:name="RECIEVEPRODUCT">
+					<response>
+						<object-to-string-transformer />
+					</response>
+				</http:outbound-endpoint>
+			</when>
+			
+			
+			
+			
+			
+		</choice>
+
+	</flow>
+
+
+</mule>
